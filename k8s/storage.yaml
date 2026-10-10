@@ -1,0 +1,35 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3-retain
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: 'true'
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-home
+  namespace: jenkins
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: gp3-retain
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vault-data
+  namespace: vault
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: gp3-retain
+  resources:
+    requests:
+      storage: 10Gi

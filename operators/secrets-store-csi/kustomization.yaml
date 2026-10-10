@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - csidriver.yaml
+  - rbac-secretproviderclass.yaml
+  - secrets-store-csi-driver.yaml
+  - secrets-store.csi.x-k8s.io_secretproviderclasses.yaml
+  - secrets-store.csi.x-k8s.io_secretproviderclasspodstatuses.yaml
+patches:
+  - target:
+      kind: CSIDriver
+      name: secrets-store.csi.k8s.io
+    patch: |-
+      - op: add
+        path: /spec/tokenRequests
+        value:
+          - audience: vault
+            expirationSeconds: 600

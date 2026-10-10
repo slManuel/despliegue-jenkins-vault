@@ -1,0 +1,16 @@
+{
+  "vso": {
+    "version": "v1.6.0",
+    "commit": "92e69f61366ec3675af3cb5592f8f4ca3b86efa8",
+    "archive_sha256": "a4061c82dd333bc1dd884c4afb759da8e6b330d6ce6ff28c068088386730b92c"
+  },
+  "vault_csi_provider": {
+    "version": "v1.7.4",
+    "source": "https://github.com/hashicorp/vault-csi-provider",
+    "manifest_sha256": "758350b708f0756ef8faecac0742481c8b1ffaee5dbf7524463a537130c385bc"
+  },
+  "secrets_store_csi_driver": {
+    "version": "v1.6.1",
+    "source": "https://github.com/kubernetes-sigs/secrets-store-csi-driver/releases/tag/v1.6.1"
+  }
+}

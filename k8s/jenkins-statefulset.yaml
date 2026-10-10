@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: jenkins
+  namespace: jenkins
+spec:
+  serviceName: jenkins
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      serviceAccountName: jenkins-controller
+      nodeSelector:
+        workload: jenkins
+      imagePullSecrets:
+      - name: ghcr-pull
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: jenkins
+        image: ghcr.io/slmanuel/jenkins-controller:REPLACE_COMMIT
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: JAVA_OPTS
+          value: -Djenkins.install.runSetupWizard=false -Xms512m -Xmx1536m
+        - name: CASC_JENKINS_CONFIG
+          value: /var/jenkins-casc/jenkins.yaml
+        - name: JENKINS_ADMIN_ID
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-admin
+              key: username
+        - name: JENKINS_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-admin
+              key: password
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: '1'
+            memory: 2Gi
+        startupProbe:
+          httpGet:
+            path: /login
+            port: http
+          failureThreshold: 90
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /login
+            port: http
+        livenessProbe:
+          httpGet:
+            path: /login
+            port: http
+          periodSeconds: 20
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: home
+          mountPath: /var/jenkins_home
+        - name: casc
+          mountPath: /var/jenkins-casc
+          readOnly: true
+      volumes:
+      - name: home
+        persistentVolumeClaim:
+          claimName: jenkins-home
+      - name: casc
+        configMap:
+          name: jenkins-casc
