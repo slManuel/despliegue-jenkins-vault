@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-# Execute inside the Vault pod with an interactive, temporary administrative token.
+# Run from this repository on a private-access workstation with Vault CLI and jq.
+# Authenticate interactively with a temporary administrative token using the token helper.
 set -eu
 set +x
 # Authenticate with vault login -no-print; token helper is supported.
