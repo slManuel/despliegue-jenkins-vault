@@ -47,7 +47,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: vault
-          image: hashicorp/vault:2.1.2
+          image: hashicorp/vault:2.1.2@sha256:c2f666266f383d2cf424d86b8bb8ce7d065562173ffec2b476d762943608bb55
           command: [vault, server, '-config=/vault/config/server.hcl']
           env:
             - name: VAULT_ADDR
@@ -124,6 +124,7 @@ metadata:
   name: vault
   namespace: vault
 spec:
+  publishNotReadyAddresses: true
   selector:
     app: vault
   ports:

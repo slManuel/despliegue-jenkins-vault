@@ -4,3 +4,6 @@ build/
 *.key
 kubeconfig*
 local/
+
+__pycache__/
+*.pyc

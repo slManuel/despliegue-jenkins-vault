@@ -1,22 +1,33 @@
 #!/usr/bin/env sh
-# Run from this repository on a private-access workstation with Vault CLI and jq.
-# Authenticate interactively with a temporary administrative token using the token helper.
+# Configuración compartida. Ejecutar manualmente con token administrativo temporal.
 set -eu
 set +x
-# Authenticate with vault login -no-print; token helper is supported.
-: "${TOOLS_ISSUER:?EKS deployment cluster OIDC issuer required}"
-: "${DEVELOPMENT_ISSUER:?EKS microservice cluster OIDC issuer required}"
-case "$TOOLS_ISSUER:$DEVELOPMENT_ISSUER" in https://oidc.eks.us-east-1.amazonaws.com/id/*:https://oidc.eks.us-east-1.amazonaws.com/id/*) ;; *) echo 'Unexpected EKS issuer' >&2; exit 1;; esac
+: "${TOOLS_ISSUER:?Tools EKS issuer required}"
+: "${DEVELOPMENT_ISSUER:?Development EKS issuer required}"
+: "${QA_ISSUER:?QA EKS issuer required}"
+: "${PRODUCTION_ISSUER:?Production EKS issuer required}"
+for issuer in "$TOOLS_ISSUER" "$DEVELOPMENT_ISSUER" "$QA_ISSUER" "$PRODUCTION_ISSUER"; do
+  case "$issuer" in https://oidc.eks.us-east-1.amazonaws.com/id/*) ;; *) echo 'Unexpected EKS issuer' >&2; exit 1;; esac
+done
+[ "$TOOLS_ISSUER" != "$DEVELOPMENT_ISSUER" ] && [ "$TOOLS_ISSUER" != "$QA_ISSUER" ] && [ "$TOOLS_ISSUER" != "$PRODUCTION_ISSUER" ]
+[ "$DEVELOPMENT_ISSUER" != "$QA_ISSUER" ] && [ "$DEVELOPMENT_ISSUER" != "$PRODUCTION_ISSUER" ] && [ "$QA_ISSUER" != "$PRODUCTION_ISSUER" ]
 vault secrets list -format=json | jq -e 'has("kv/")' >/dev/null || vault secrets enable -path=kv kv-v2
-vault policy write jenkins vault/jenkins-policy.hcl
-vault policy write microservicio vault/microservicio-policy.hcl
 vault auth list -format=json | jq -e 'has("deployment/")' >/dev/null || vault auth enable -path=deployment jwt
-vault auth list -format=json | jq -e 'has("development/")' >/dev/null || vault auth enable -path=development jwt
 vault write auth/deployment/config oidc_discovery_url="$TOOLS_ISSUER" bound_issuer="$TOOLS_ISSUER"
-vault write auth/development/config oidc_discovery_url="$DEVELOPMENT_ISSUER" bound_issuer="$DEVELOPMENT_ISSUER"
-vault write auth/deployment/role/jenkins role_type=jwt user_claim=sub bound_subject=system:serviceaccount:jenkins:jenkins-pipeline bound_audiences=vault token_policies=jenkins token_ttl=5m token_max_ttl=5m
-vault write auth/development/role/microservicio role_type=jwt user_claim=sub bound_subject=system:serviceaccount:development:microservicio bound_audiences=vault token_policies=microservicio token_ttl=5m token_max_ttl=5m
-# These are deliberately non-sensitive assessment data, never production credentials.
-vault kv put kv/demo/app DEMO_MESSAGE=demostracion-cuscatlan FEATURE_FLAG=enabled
-vault kv put kv/demo/config property='demo.property=configuracion-desde-CSI'
-echo 'JWT roles, least-privilege policies and demonstration records configured.'
+configure_environment() {
+  target=$1
+  issuer=$2
+  vault policy write "jenkins-$target" "vault/environments/$target/jenkins-policy.hcl"
+  vault policy write "microservicio-$target" "vault/environments/$target/microservicio-policy.hcl"
+  vault auth list -format=json | jq -e --arg mount "$target/" 'has($mount)' >/dev/null || vault auth enable -path="$target" jwt
+  vault write "auth/$target/config" oidc_discovery_url="$issuer" bound_issuer="$issuer"
+  vault write "auth/deployment/role/jenkins-$target" role_type=jwt user_claim=sub bound_subject=system:serviceaccount:jenkins:jenkins-pipeline bound_audiences=vault token_policies="jenkins-$target" token_ttl=5m token_max_ttl=5m
+  vault write "auth/$target/role/microservicio" role_type=jwt user_claim=sub bound_subject="system:serviceaccount:$target:microservicio" bound_audiences=vault token_policies="microservicio-$target" token_ttl=5m token_max_ttl=5m
+  # Inicializa/reemplaza exclusivamente datos de evaluación, nunca secretos de producción reales.
+  vault kv put "kv/environments/$target/app" DEMO_MESSAGE="demostracion-$target" FEATURE_FLAG=enabled
+  vault kv put "kv/environments/$target/config" property="demo.property=configuracion-$target-desde-CSI"
+}
+configure_environment development "$DEVELOPMENT_ISSUER"
+configure_environment qa "$QA_ISSUER"
+configure_environment production "$PRODUCTION_ISSUER"
+echo 'Three environment policies, JWT mounts and demonstration records configured; values omitted.'

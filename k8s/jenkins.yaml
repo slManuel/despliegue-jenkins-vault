@@ -4,15 +4,44 @@ metadata:
   name: jenkins-casc
   namespace: jenkins
 data:
-  jenkins.yaml: "jenkins:\n  systemMessage: \"Prueba DevOps: deployment separado de\
-    \ development\"\n  numExecutors: 0\n  mode: EXCLUSIVE\n  securityRealm:\n    local:\n\
-    \      allowsSignup: false\n      users:\n        - id: \"${JENKINS_ADMIN_ID}\"\
-    \n          password: \"${JENKINS_ADMIN_PASSWORD}\"\n  authorizationStrategy:\n\
-    \    loggedInUsersCanDoAnything:\n      allowAnonymousRead: false\n  clouds:\n\
-    \    - kubernetes:\n        name: kubernetes\n        serverUrl: https://kubernetes.default.svc\n\
-    \        namespace: jenkins\n        jenkinsUrl: http://jenkins.jenkins.svc.cluster.local:8080\n\
-    \        webSocket: true\nunclassified:\n  location:\n    url: http://jenkins.jenkins.svc.cluster.local:8080/\n\
-    security:\n  scriptApproval:\n    approvedSignatures: []\n"
+  jenkins.yaml: |
+    jenkins:
+      systemMessage: 'Jenkins/Vault compartidos: development, qa y production'
+      numExecutors: 0
+      mode: EXCLUSIVE
+      securityRealm:
+        local:
+          allowsSignup: false
+          users:
+          - id: ${JENKINS_ADMIN_ID}
+            password: ${JENKINS_ADMIN_PASSWORD}
+          - id: ${JENKINS_PROMOTION_USER}
+            password: ${JENKINS_PROMOTION_PASSWORD}
+      authorizationStrategy:
+        globalMatrix:
+          entries:
+          - user:
+              name: ${JENKINS_ADMIN_ID}
+              permissions:
+              - Overall/Administer
+          - user:
+              name: ${JENKINS_PROMOTION_USER}
+              permissions:
+              - Overall/Read
+              - Job/Read
+      clouds:
+      - kubernetes:
+          name: kubernetes
+          serverUrl: https://kubernetes.default.svc
+          namespace: jenkins
+          jenkinsUrl: http://jenkins.jenkins.svc.cluster.local:8080
+          webSocket: true
+    unclassified:
+      location:
+        url: http://jenkins.jenkins.svc.cluster.local:8080/
+    security:
+      scriptApproval:
+        approvedSignatures: []
 ---
 apiVersion: v1
 kind: Service

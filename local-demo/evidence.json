@@ -1,0 +1,24 @@
+{
+  "timestamp_utc": "2026-10-10T14:27:02.607353+00:00",
+  "environment": "LOCAL kind; no AWS apply",
+  "two_ready_replicas": true,
+  "image": "172.20.0.7:5000/devops-java-service@sha256:096ed19a5a6ab38b78be29c809b1c90c412a8655d7e20b380a3504cd7babe597",
+  "csi_mounted_both_pods": true,
+  "http_env_matches_demo": true,
+  "http_property_matches_csi": true,
+  "vso_feature": "enabled",
+  "vso_healthy": true,
+  "jenkins_vault_login": true,
+  "jenkins_unrelated_path_denied": true,
+  "wrong_serviceaccount_denied": true,
+  "rollback": {
+    "jenkins_build": 4,
+    "job_result": "FAILURE (intentional missing image)",
+    "candidate_secret_observed": true,
+    "previous_secret_data_restored_exactly": true,
+    "previous_pod_spec_restored": true,
+    "two_replicas_and_previous_http_restored": true
+  },
+  "demo_stopped_by_user": true,
+  "note": "Runtime snapshot predates shutdown; AWS runtime not validated."
+}

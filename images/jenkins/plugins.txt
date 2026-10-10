@@ -5,3 +5,5 @@ git:5.10.1
 credentials-binding:728.v902a_273b_8947
 plain-credentials:199.v9f8e1f741799
 pipeline-stage-view:2.41
+matrix-auth:3.3
+github-branch-source:1983.vfa_27ed961853

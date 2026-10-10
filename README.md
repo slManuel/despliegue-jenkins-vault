@@ -1,34 +1,42 @@
-# Jenkins y Vault con manifiestos Kubernetes propios
+# Jenkins y Vault compartidos
 
-Repositorio privado de instalación para `prueba-devops-jenkins-vault`, separado de Terraform. **Sin Helm**: StatefulSets, Services, PVC, RBAC y ConfigMaps propios. Los operadores de desarrollo usan manifiestos oficiales versionados con Kustomize, conservando licencias; no se crea un operador propio.
+Una instalación en `prueba-devops-jenkins-vault` sirve a development, QA y production. **Sin Helm:** manifiestos propios para Jenkins/Vault y manifiestos oficiales versionados para VSO/CSI.
 
-| Ruta | Contenido |
+| Carpeta | Contenido |
 |---|---|
-| `k8s/` | Jenkins con JCasC, Vault Raft/TLS, NLB interno, almacenamiento gp3 Retain y RBAC |
-| `images/` | Jenkins LTS Java 21 con plugins fijados y agente Java 21/kubectl/jq |
-| `operators/` | VSO 1.6.0, Vault CSI provider 1.7.4, Secrets Store CSI driver 1.6.1, procedencia/hash y overlays |
-| `vault/` | Políticas de lectura limitada al KV de demostración |
-| `scripts/` | TLS local, configuración JWT, instalación explícita y validación |
-| `docs/OPERACION.md` | Orden de instalación, credenciales, red entre clústeres y validación de rúbrica |
+| `k8s/` | Jenkins/JCasC, Vault Raft/TLS, almacenamiento y RBAC |
+| `images/` | Controller/agente Java 21; plugins fijados para Multibranch y lector de promociones |
+| `vault/environments/` | Políticas explícitas development/qa/production |
+| `operators/` | VSO y CSI vendorizados, con Kustomize |
+| `scripts/` | Instalación y configuración manual |
 
-Seguir [OPERACION.md](docs/OPERACION.md). Los scripts de instalación requieren contexto exacto e `INSTALL_ENABLED=true`; no hay despliegue automático desde GitHub. El workflow valida manifiestos y construye ambas imágenes; sólo una ejecución manual con `publish_images=true` publica paquetes privados en GHCR.
+Vault separa rutas `kv/environments/<entorno>`, políticas y mounts JWT por issuer de clúster. Jenkins obtiene permisos de lectura por rol de entorno; no se crean tres instalaciones Vault. La instalación de operadores se repite en los tres clústeres de aplicación.
+
+Este repo conserva main. Su workflow tiene **2 jobs, 5 pasos**: manifests (checkout/validación) e images (checkout/build/publicación opcional). Solo publica imágenes al solicitarlo manualmente; no despliega. Los scripts requieren `INSTALL_ENABLED=true` y contexto exacto.
 
 ```mermaid
 flowchart LR
-  G[GitHub privado] --> J[Jenkins / tools]
-  J -->|JWT SA temporal + TLS| V[Vault Raft / tools]
-  J -->|BuildKit rootless| R[GHCR privado]
-  J -->|API privada / RBAC development| D[Micro Java 21 / dos réplicas]
-  R --> D
-  V --> N[NLB interno TCP 8200]
-  N -->|TLS + JWT issuer micro| O[VSO y CSI / development]
-  O -->|env FEATURE_FLAG / archivo properties| D
-  E[Evaluador / CIDR autorizado] --> L[NLB evaluación]
-  L --> D
+  G[PR y ramas] --> J[Jenkins compartido]
+  J --> V[Vault compartido / rutas por entorno]
+  J --> R[GHCR / un digest]
+  J --> D[EKS development]
+  J --> Q[EKS QA]
+  J --> P[EKS production]
+  V --> D
+  V --> Q
+  V --> P
 ```
 
-Las imágenes de Jenkins, agente y Java se construyeron localmente; los plugins se resolvieron correctamente. Kustomize renderiza los tres componentes. Kubeconform valida recursos estándar contra Kubernetes 1.36; los CRD oficiales se omiten explícitamente de ese validador, y sus esquemas suministran la validación de CR en el repo micro. No equivale a una instalación integrada: EKS/nodos, PVC, JWT, TLS, NLB y rollback real están pendientes por el bloqueo AWS y la falta de estación con acceso privado. No se afirma puntuación obtenida ni funcionamiento en el clúster.
+## Preparación pendiente
 
-Vault y Jenkins son de una réplica para la evaluación; Vault requiere unseal manual y no ofrece HA. El agente Jenkins no usa `privileged` ni Docker socket; el driver CSI conserva privilegios de nodo necesarios. No hay secretos reales en archivos versionados. Revisar excepciones y costes detallados en operación.
+1. Aplicar bootstrap y recuperar herramientas; crear los tres EKS con su plan/aprobación. Se necesita estación con acceso privado a las cuatro API.
+2. Publicar imágenes revisadas; crear secretos administrativos, `jenkins-promotion-reader` (username/password de usuario distinto), TLS/CA y GHCR desde archivos privados. Instalar tools con `INSTALL_ENABLED=true` y `CONTROLLER_IMAGE` real.
+3. Inicializar/desellar Vault interactivamente. Exportar TOOLS_ISSUER, DEVELOPMENT_ISSUER, QA_ISSUER y PRODUCTION_ISSUER; ejecutar configure-vault.sh. Escribe/reemplaza datos de demo, nunca usarlo con secretos reales. Revocar token administrativo después.
+4. En cada clúster de app, preparar namespace/identidades/CA/ghcr-pull; ejecutar `TARGET_ENVIRONMENT=<entorno> INSTALL_ENABLED=true sh scripts/install-development.sh` con contexto exacto. Sustituir DNS Vault por el NLB interno, conservar CA/SAN TLS y autorizar CIDR de evaluación antes de aplicar CR/Service; no aplicar imagen placeholder.
+5. Crear Jenkins Multibranch limitado a develop/qa/main, SCM privado, AGENT_IMAGE, registry-credentials, promotion-reader (API token de solo lectura) y kubeconfig-development/qa/production. Los kubeconfigs usan SA jenkins-deployer de cada clúster y tokens temporales; renovar antes de caducar.
 
-Fuentes: [VSO](https://developer.hashicorp.com/vault/docs/deploy/kubernetes/vso/api-reference), [Vault CSI](https://developer.hashicorp.com/vault/docs/deploy/kubernetes/csi/configurations), [Secrets Store CSI](https://github.com/kubernetes-sigs/secrets-store-csi-driver/releases/tag/v1.6.1), [NLB en EKS](https://docs.aws.amazon.com/eks/latest/userguide/network-load-balancing.html), [BuildKit rootless](https://github.com/moby/buildkit/blob/master/docs/rootless.md), [Kubeconform](https://github.com/yannh/kubeconform).
+JCasC conserva admin y añade lector con Overall/Read + Job/Read. La URL Jenkins actual es HTTP interno: limitar acceso de red y no exponer credenciales fuera de tools. QA/main requieren SOURCE_BUILD_NUMBER de un job previo exitoso y mismo árbol Git; si falta, se detienen. Configurar protecciones/revisión de PR y conservar artefactos hasta terminar promociones.
+
+Estado: código local, sin instalación AWS ni publicación de las imágenes nuevas. [Evidencia histórica local](local-demo/README.md). La demo permanece detenida; su éxito anterior no prueba el flujo nuevo de tres entornos. Vault tiene una réplica y unseal manual; no ofrece HA.
+
+Plugins nuevos preparados en código, sin instalación: [Matrix Authorization 3.3](https://plugins.jenkins.io/matrix-auth/) y [GitHub Branch Source](https://plugins.jenkins.io/github-branch-source/). Falta comprobar dependencias, JCasC y pipeline con Jenkins real. Las pruebas de sintaxis no acreditan esa integración.

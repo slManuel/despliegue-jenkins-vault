@@ -46,6 +46,16 @@ spec:
             secretKeyRef:
               name: jenkins-admin
               key: password
+        - name: JENKINS_PROMOTION_USER
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-promotion-reader
+              key: username
+        - name: JENKINS_PROMOTION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-promotion-reader
+              key: password
         resources:
           requests:
             cpu: 500m

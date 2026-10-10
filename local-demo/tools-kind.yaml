@@ -1,0 +1,17 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: cuscatlan-tools
+networking:
+  apiServerAddress: 127.0.0.1
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a
+    extraPortMappings:
+      - {containerPort: 30080, hostPort: 18080, listenAddress: 127.0.0.1}
+      - {containerPort: 30200, hostPort: 18200, listenAddress: 127.0.0.1}
+  - role: worker
+    image: kindest/node:v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a
+    labels: {workload: jenkins}
+  - role: worker
+    image: kindest/node:v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a
+    labels: {workload: vault}
