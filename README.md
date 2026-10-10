@@ -37,6 +37,6 @@ flowchart LR
 
 JCasC conserva admin y añade lector con Overall/Read + Job/Read. La URL Jenkins actual es HTTP interno: limitar acceso de red y no exponer credenciales fuera de tools. QA/main requieren SOURCE_BUILD_NUMBER de un job previo exitoso y mismo árbol Git; si falta, se detienen. Configurar protecciones/revisión de PR y conservar artefactos hasta terminar promociones.
 
-Estado: código local, sin instalación AWS ni publicación de las imágenes nuevas. [Evidencia histórica local](local-demo/README.md). La demo permanece detenida; su éxito anterior no prueba el flujo nuevo de tres entornos. Vault tiene una réplica y unseal manual; no ofrece HA.
+Estado: código publicado; sin instalación AWS ni publicación de las imágenes nuevas. [Evidencia histórica local](local-demo/README.md). La demo permanece detenida; su éxito anterior no prueba el flujo nuevo de tres entornos. Vault tiene una réplica y unseal manual; no ofrece HA.
 
 Plugins nuevos preparados en código, sin instalación: [Matrix Authorization 3.3](https://plugins.jenkins.io/matrix-auth/) y [GitHub Branch Source](https://plugins.jenkins.io/github-branch-source/). Falta comprobar dependencias, JCasC y pipeline con Jenkins real. Las pruebas de sintaxis no acreditan esa integración.
